@@ -1,0 +1,7 @@
+"0","cocktails_df <- cocktails_parsed_filtered %>%"
+"0","  select(-ingredient_number, -row_id, -measure) %>% # remove unneeded columns"
+"0","  pivot_wider(names_from = ingredient, values_from = measure_number, values_fill = 0) %>%"
+"0","  janitor::clean_names() "
+"0","#  na.omit()"
+"0",""
+"0","cocktails_df"

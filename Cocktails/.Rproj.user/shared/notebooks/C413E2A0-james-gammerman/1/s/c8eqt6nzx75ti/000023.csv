@@ -1,0 +1,7 @@
+"0","cocktails_parsed_filtered %>% "
+"0","        count(ingredient, sort = TRUE) %>% "
+"0","        head(20) %>% "
+"0","        mutate(ingredient = fct_reorder(ingredient, n)) %>% "
+"0","        ggplot(aes(n, ingredient)) + "
+"0","        geom_col() +"
+"0","        labs(title = ""Most common ingredients in Mr Boston recipes"")"

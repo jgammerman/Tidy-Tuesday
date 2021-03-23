@@ -1,0 +1,14 @@
+"0","library(tidymodels)"
+"0",""
+"0","pca_rec <- recipe(~., data = cocktails_df) %>%"
+"0","  update_role(name, category, new_role = ""id"") %>%"
+"0","  step_normalize(all_predictors()) %>%   # centers and scales all predictors"
+"0","  step_pca(all_predictors())"
+"0",""
+"0","pca_rec  # PCA hasn't actually been run yet - see next step"
+"1","Data Recipe
+
+"
+"1","Inputs:
+
+"

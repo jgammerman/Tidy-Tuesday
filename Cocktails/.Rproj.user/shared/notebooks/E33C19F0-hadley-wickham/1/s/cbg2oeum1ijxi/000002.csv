@@ -1,0 +1,5 @@
+"0","cocktails <- cocktails %>% mutate(ingredient = tolower(ingredient))"
+"0",""
+"0","cocktails %>%"
+"0","  count(ingredient = tolower(ingredient), sort = TRUE) %>%"
+"0","  head(20)"

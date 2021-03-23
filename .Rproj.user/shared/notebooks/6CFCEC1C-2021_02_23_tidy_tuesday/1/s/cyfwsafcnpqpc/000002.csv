@@ -1,0 +1,18 @@
+"0","tt <- tt_load(""2021-02-23"")
+"
+"2","--- Compiling #TidyTuesday Information for 2021-02-23 ----
+"
+"2","--- There are 2 files available ---
+"
+"2","--- Starting Download ---
+"
+"1","
+"
+"1","	Downloading file 1 of 2: `earn.csv`
+"
+"1","	Downloading file 2 of 2: `employed.csv`
+"
+"1","
+"
+"2","--- Download complete ---
+"

@@ -1,0 +1,14 @@
+"0","```r
+glimpse(employed)
+
+```"
+"1","Rows: 8,184
+Columns: 7
+$ industry         [3m[38;5;246m<chr>[39m[23m \"Agriculture and related\", \"Agriculture and related\", \"Agriculture and related\", \"Agricultu…
+$ major_occupation [3m[38;5;246m<chr>[39m[23m \"Management, professional, and related occupations\", \"Management, professional, and related…
+$ minor_occupation [3m[38;5;246m<chr>[39m[23m \"Management, business, and financial operations occupations\", \"Professional and related occ…
+$ race_gender      [3m[38;5;246m<chr>[39m[23m \"TOTAL\", \"TOTAL\", \"TOTAL\", \"TOTAL\", \"TOTAL\", \"TOTAL\", \"TOTAL\", \"TOTAL\", \"TOTAL\", \"TOTAL\", \"…
+$ industry_total   [3m[38;5;246m<dbl>[39m[23m 2349000, 2349000, 2349000, 2349000, 2349000, 2349000, 2349000, 2349000, 2349000, 2349000, 2…
+$ employ_n         [3m[38;5;246m<dbl>[39m[23m 961000, 58000, 13000, 94000, 12000, 96000, 931000, 10000, 33000, 42000, 99000, 146000, 1040…
+$ year             [3m[38;5;246m<dbl>[39m[23m 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2…
+"

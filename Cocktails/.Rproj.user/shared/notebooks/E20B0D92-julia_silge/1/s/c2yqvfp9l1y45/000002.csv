@@ -1,0 +1,16 @@
+"0","library(embed)"
+"0",""
+"0","umap_rec <- recipe(~., data = cocktails_df) %>%"
+"0","  update_role(name, category, new_role = ""id"") %>%"
+"0","  step_normalize(all_predictors()) %>%"
+"0","  step_umap(all_predictors())"
+"0",""
+"0","umap_prep <- prep(umap_rec)"
+"0",""
+"0","umap_prep"
+"1","Data Recipe
+
+"
+"1","Inputs:
+
+"

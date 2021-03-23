@@ -1,0 +1,2 @@
+"0","cocktails %>%"
+"0","  filter(str_detect(ingredient, ""bitters""))"

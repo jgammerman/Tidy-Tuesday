@@ -1,0 +1,20 @@
+"1","
+Training data contained "
+"1",""
+"1","937"
+"1",""
+"1"," data points and "
+"1","no missing data.
+"
+"1","
+Operations:
+
+"
+"1","Centering and scaling for "
+"1","light_rum, lemon_juice, lime_juice, ..."
+"1"," [trained]
+"
+"1","UMAP embedding for "
+"1","light_rum, lemon_juice, lime_juice, ..."
+"1"," [trained]
+"

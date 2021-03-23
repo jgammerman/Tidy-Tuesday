@@ -1,0 +1,5 @@
+"0","sizes %>%"
+"0","  group_by(ingredient) %>%"
+"0","  summarise(n = n(), oz = mean(oz)) %>%"
+"0","  filter(n > 5) %>%"
+"0","  arrange(desc(oz))"

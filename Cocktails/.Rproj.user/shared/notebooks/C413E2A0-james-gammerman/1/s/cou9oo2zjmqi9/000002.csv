@@ -1,0 +1,5 @@
+"0",""
+"0","boston_cocktails <- readr::read_csv(""https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-26/boston_cocktails.csv"")"
+"0",""
+"0","boston_cocktails %>%"
+"0","  count(ingredient, sort = TRUE)"

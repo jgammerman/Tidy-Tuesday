@@ -1,0 +1,4 @@
+"0","#Count (not used in this plot)"
+"0","data <- firsts %>%"
+"0","  group_by(category, year) %>%"
+"0","  dplyr::mutate(category_total = n()) "

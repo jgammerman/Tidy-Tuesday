@@ -1,0 +1,200 @@
+---
+title: "Cocktail recipes - Julia Silge followalong"
+author: "James Gammerman"
+date: "03/06/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message= FALSE, cache = TRUE, dpi = 180)
+
+library(tidyverse)
+library(silgelib)
+theme_set(theme_minimal())
+
+```
+
+Screencast link: https://juliasilge.com/blog/cocktail-recipes-umap/
+
+Let's build a model for [cocktail recipes from this week's #tidytuesday dataset](https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-05-26/readme.md). Let's perform unsupervised dimensionality reduction with these cocktail recipes.
+
+## Explore the data
+
+```{r}
+boston_cocktails <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-26/boston_cocktails.csv")
+
+boston_cocktails %>%
+  count(ingredient, sort = TRUE)
+```
+
+
+```{r}
+cocktails_parsed <- boston_cocktails %>%
+  mutate(
+    ingredient = str_to_lower(ingredient),  # get lower case
+    ingredient = str_replace_all(ingredient, "-", " "),  # replace all dashes with spaces 
+    ingredient = str_remove(ingredient, " liqueur$"), 
+    ingredient = str_remove(ingredient, " (if desired)$"),
+    ingredient = case_when(
+      str_detect(ingredient, "bitters") ~ "bitters",
+      str_detect(ingredient, "lemon") ~ "lemon juice",
+      str_detect(ingredient, "lime") ~ "lime juice",
+      str_detect(ingredient, "grapefruit") ~ "grapefruit juice",
+      str_detect(ingredient, "orange") ~ "orange juice",
+            str_detect(ingredient, "whiskey") ~ "whiskey",
+      str_detect(ingredient, "rum") ~ "rum",
+      TRUE ~ ingredient
+    ),
+    measure = case_when(
+      str_detect(ingredient, "bitters") ~ str_replace(measure, "oz$", "dash"),
+      TRUE ~ measure
+    ),
+    measure = str_replace(measure, " ?1/2", ".5"),  # change 1 1/2 oz to 1.5 oz
+    measure = str_replace(measure, " ?3/4", ".75"),
+    measure = str_replace(measure, " ?1/4", ".25"),
+    measure_number = parse_number(measure),  # get out the number only
+    measure_number = if_else(str_detect(measure, "dash$"),
+      measure_number / 50,
+      measure_number
+    )
+  ) %>%
+  add_count(ingredient) %>% # get a count of ingredients so we can filter out rare ones
+  filter(n > 15) %>%  # reduces no. ingredients from >400 down to 40
+  select(-n) %>%
+  distinct(row_id, ingredient, .keep_all = TRUE) %>%    # to stop repetitions e.g. if we had lemon slice and lemon juice in a recipe then we will end up with 2 'lemon's as per our mutate() calls earlier
+  na.omit()
+
+cocktails_parsed
+```
+
+
+
+
+I typically do my data cleaning with data in a tidy format, like `boston_cocktails` or `cocktails_parsed.` When it’s time for modeling, we usually need the data in a wider format, so let’s use `pivot_wider()` to reshape our data.
+
+```{r}
+cocktails_df <- cocktails_parsed %>%
+  select(-ingredient_number, -row_id, -measure) %>%
+  pivot_wider(names_from = ingredient, values_from = measure_number, values_fill = 0) %>%
+  janitor::clean_names() %>% 
+  na.omit()
+
+cocktails_df
+```
+
+## Principal component analysis
+
+This dataset is especially delightful because we get to use recipes with recipes. 😍 Let’s load the tidymodels metapackage and implement principal component analysis with a recipe.
+
+```{r}
+
+library(tidymodels)
+
+pca_rec <- recipe(~., data = cocktails_df) %>%
+  update_role(name, category, new_role = "id") %>%
+  step_normalize(all_predictors()) %>%   # centers and scales all predictors
+  step_pca(all_predictors())
+
+pca_rec  # PCA hasn't actually been run yet - see next step
+
+```
+
+
+```{r}
+pca_prep <- prep(pca_rec)  # takes the data and estimates the PCA values
+pca_prep
+```
+
+
+* First, we must tell the recipe() what’s going on with our model (notice the formula with no outcome) and what data we are using.
+* Next, we update the role for cocktail name and category, since these are variables we want to keep around for convenience as identifiers for rows but are not a predictor or outcome.
+* We need to center and scale the numeric predictors, because we are about to implement PCA.
+* Finally, we use step_pca() for the actual principal component analysis.
+
+Before using `prep()` these steps have been defined but not actually run or implemented. The prep() function is where everything gets evaluated.
+
+Once we have that done, we can both explore the results of the PCA. Let’s start with checking out how the PCA turned out. We can `tidy()` any of our recipe steps, including the PCA step, which is the second step. Then let’s make a visualization to see what the components look like.
+
+```{r}
+tidied_pca <- tidy(pca_prep, 2)
+tidied_pca
+```
+
+```{r}
+tidied_pca %>%
+  filter(component %in% paste0("PC", 1:5)) %>%
+  mutate(component = fct_inorder(component)) %>%
+  ggplot(aes(value, terms, fill = terms)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~component, nrow = 1) +
+  labs(y = NULL)
+```
+
+~ 28 mins: The biggest difference in PC1 is powdered sugar vs. simple syrup; recipes are not likely to have both, which makes sense! Let’s zoom in on the first four components, and understand which cocktail ingredients contribute in the positive and negative directions.
+
+```{r}
+library(tidytext)
+
+tidied_pca %>%
+  filter(component %in% paste0("PC", 1:4)) %>%
+  group_by(component) %>%
+  top_n(8, abs(value)) %>%
+  ungroup() %>%
+  mutate(terms = reorder_within(terms, by = abs(value), within = component)) %>%  # from tidytext package - reorders column before plotting with faceting, such that the values are ordered within each facet...needs scale_x_reordered or scale_y_reordered to be used laster
+  ggplot(aes(abs(value), terms, fill = value > 0)) +
+  geom_col() +
+  facet_wrap(~component, , scales = "free_y") +
+  scale_y_reordered() +  # see earlier comment
+  labs(
+    x = "Absolute value of contribution",
+    y = NULL, fill = "Positive?"
+  )
+```
+
+So PC1 is about powdered sugar + egg + gin drinks vs. simple syrup + lime + tequila drinks. This is the component that explains the most variation in drinks. PC2 is mostly about vermouth, both sweet and dry.
+
+~ 38 mins: How are the cocktails distributed in the plane of the first two components?
+
+```{r}
+juice(pca_prep) %>%  # get info from processed dataset
+  ggplot(aes(PC1, PC2, label = name)) +
+  geom_point(aes(color = category), alpha = 0.7, size = 2) +
+  geom_text(check_overlap = TRUE, hjust = "inward") +  # so that labels dont overlap
+  labs(color = NULL)
+```
+
+* Fizzy, egg, powdered sugar drinks are to the left.
+* Simple syrup, lime, tequila drinks are to the right.
+* Vermouth drinks are more to the top.
+
+## UMAP - alternative to PCA
+
+One of the benefits of the tidymodels ecosystem is the flexibility and ease of trying different approaches for the same kind of task. For example, we can switch out PCA for UMAP, an entirely different algorithm for dimensionality reduction based on ideas from topological data analysis. The embed package provides recipe steps for ways to create embeddings including UMAP. Let’s switch out the PCA step for the UMAP step.
+
+```{r}
+library(embed)  # Gives recipe steps for embeddings
+
+umap_rec <- recipe(~., data = cocktails_df) %>%
+  update_role(name, category, new_role = "id") %>%
+  step_normalize(all_predictors()) %>%
+  step_umap(all_predictors())
+
+umap_prep <- prep(umap_rec)
+
+umap_prep
+```
+
+Now we can example how the cocktails are distributed in the plane of the first two UMAP components.
+
+```{r}
+juice(umap_prep) %>%
+  ggplot(aes(umap_1, umap_2, label = name)) +
+  geom_point(aes(color = category), alpha = 0.7, size = 2) +
+  geom_text(check_overlap = TRUE, hjust = "inward") +
+  labs(color = NULL)
+```
+
+Really interesting, but also different! This is because UMAP is so different from PCA, although they are both approaching this question of how to project a set of features, like ingredients in cocktail recipes, into a smaller space.
+

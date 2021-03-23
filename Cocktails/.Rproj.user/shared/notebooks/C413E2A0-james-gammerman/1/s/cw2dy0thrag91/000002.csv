@@ -1,0 +1,3 @@
+"0","cocktails_parsed_filtered %>% "
+"0","          distinct(name, category) %>% "
+"0","        count(category, sort = TRUE)"

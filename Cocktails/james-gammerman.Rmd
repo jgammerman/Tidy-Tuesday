@@ -1,0 +1,314 @@
+---
+title: "James-Gammerman"
+author: "James"
+date: "12/06/2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: 
+        collapsed: true
+        smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message= FALSE, cache = TRUE, dpi = 180)
+
+library(tidyverse)
+library(silgelib)
+library(scales)
+theme_set(theme_minimal())
+
+```
+
+## Data Cleaning
+
+```{r}
+
+boston_cocktails <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-05-26/boston_cocktails.csv")
+
+boston_cocktails %>%
+  count(ingredient, sort = TRUE)
+
+```
+
+```{r}
+
+cocktails_parsed <- boston_cocktails %>%
+  mutate(
+    ingredient = str_to_lower(ingredient),  # get lower case
+    ingredient = str_replace_all(ingredient, "-", " "),  # replace all dashes with spaces 
+    ingredient = str_remove(ingredient, " liqueur$"), 
+    ingredient = str_remove(ingredient, " (if desired)$"),
+    ingredient = case_when(
+      str_detect(ingredient, "bitters") ~ "bitters",
+      str_detect(ingredient, "lemon") ~ "lemon juice",
+      str_detect(ingredient, "lime") ~ "lime juice",
+      str_detect(ingredient, "grapefruit") ~ "grapefruit juice",
+      str_detect(ingredient, "orange") ~ "orange juice",
+      TRUE ~ ingredient
+    ),
+    measure = case_when(
+      str_detect(ingredient, "bitters") ~ str_replace(measure, "oz$", "dash"),
+      TRUE ~ measure
+    ),
+    measure = str_replace(measure, " ?1/2", ".5"),  # change 1 1/2 oz to 1.5 oz
+    measure = str_replace(measure, " ?3/4", ".75"),
+    measure = str_replace(measure, " ?1/4", ".25"),
+    measure_number = parse_number(measure),  # get out the number only
+    measure_number = if_else(str_detect(measure, "dash$"),
+      measure_number / 50,
+      measure_number
+    )
+  )
+
+cocktails_parsed
+
+```
+
+
+```{r}
+cocktails_parsed %>%
+  count(ingredient, sort = TRUE)
+```
+
+We still have 440 ingredients, too many! Let's filter for only ingredients that appear at least 15 times:
+
+```{r}
+cocktails_parsed_filtered <- cocktails_parsed %>% # get a count of ingredients so we can filter out rare ones
+  add_count(ingredient) %>% 
+  filter(n > 15) %>%  # reduces no. ingredients from >400 down to 40
+  select(-n) %>%
+  distinct(row_id, ingredient, .keep_all = TRUE) %>%    # to stop repetitions e.g. if we had lemon slice and lemon juice in a recipe then we will end up with 2 'lemon's as per our mutate() calls earlier
+  na.omit()
+```
+
+
+## Exploratory Data Analysis
+
+What are the msot common ingredients?
+
+```{r}
+cocktails_parsed_filtered %>% 
+        count(ingredient, sort = TRUE) %>% 
+        head(20) %>% 
+        mutate(ingredient = fct_reorder(ingredient, n)) %>% 
+        ggplot(aes(n, ingredient)) + 
+        geom_col() +
+        labs(title = "Most common ingredients in Mr Boston recipes")
+
+cocktails_parsed_filtered %>% 
+        count(ingredient, sort = TRUE) %>% 
+        head(20) %>% 
+        mutate(ingredient = fct_reorder(ingredient, n)) %>% 
+        ggplot(aes(x = ingredient, y = n)) + 
+        geom_dotplot(binaxis = "y", stackdir = "center") +
+        coord_flip() +
+        labs(title = "Most common ingredients in Mr Boston recipes")
+```
+
+```{r}
+cocktails_parsed_filtered %>% 
+          distinct(name, category) %>% 
+        count(category, sort = TRUE)
+```
+
+```{r}
+n_recipes <- n_distinct(cocktails_parsed_filtered$name)
+
+cocktails_parsed_filtered %>% 
+        count(category, ingredient, sort = TRUE) %>% 
+        mutate(category = fct_lump(category, 4),
+                           ingredient = fct_lump(ingredient, 20)) %>% 
+        filter(ingredient != "Other") %>% 
+        mutate(ingredient = fct_reorder(ingredient, n, sum)) %>% 
+        ggplot(aes(n/n_recipes, ingredient, fill = category)) + 
+        geom_col() +
+        scale_x_continuous(labels = percent_format()) +
+        labs(title = "Most common ingredients in Mr Boston recipes",
+             x = "% of all recipes",
+             y = "Ingredient",
+             fill = "Category")
+```
+
+Which ingredients tend to appear together in the same recipe?
+
+```{r}
+library(widyr) 
+library(tidytext)
+
+ingredient_pairs <- cocktails_parsed_filtered %>% 
+        add_count(ingredient) %>%   # like group_by then count
+        filter(n >= 5) %>% # filter only for ingredients that appear in min. 10 recipes
+        pairwise_cor(ingredient, name, sort = TRUE)
+
+ingredient_pairs
+```
+
+Which ingredients are most closely correlated with gin?:
+
+```{r}
+ingredient_pairs %>% 
+        filter(item1 == "gin") %>% 
+        head(10) %>% 
+        mutate(item2 = fct_reorder(item2, correlation)) %>% 
+        ggplot(aes(correlation, item2)) +
+        geom_col() +
+        labs(title = "What ingredients are most correlated with gin?")
+```
+
+Note that dry vermouth is at the top - makes sense because dry vermouth + gin is a common base for martinis!
+
+```{r}
+ingredient_pairs %>% 
+        filter(item1 %in% c("gin", "vodka",  "bourbon whiskey", "lemon juice")) %>% 
+        group_by(item1) %>% 
+        top_n(8, correlation) %>% 
+        ungroup() %>%   # wasn't included in David's script - need to include
+        mutate(item2 = reorder_within(item2, correlation, item1)) %>% 
+        ggplot(aes(correlation, item2)) +
+        geom_col() +
+        facet_wrap(~ item1, scales = "free_y") +
+        scale_y_reordered() +
+        labs(title = "What ingredients are most correlated with particular ingreidents?")
+```
+
+
+## Unsupervised Learning
+
+
+### Clustering
+
+```{r}
+
+ingredients_summarized <- cocktails_parsed_filtered %>%         
+        group_by(name) %>% 
+        mutate(percentile = row_number() / n()) %>%  # account for fact that some recipes have many ingredients and some don't
+        ungroup() %>% 
+        group_by(ingredient) %>% 
+        summarize(n = n(),
+                  n_with_measure = sum(!is.na(measure_number)),
+                  avg_position = mean(percentile),
+                  avg_serving = mean(measure_number, na.rm = TRUE)) %>% 
+        arrange(desc(n)) 
+
+#ingredients_summarized
+
+library(ggraph)
+library(igraph)
+library(ggrepel)
+
+top_cors <- ingredient_pairs %>% 
+        head(70)
+
+ingredient_info <- ingredients_summarized %>% 
+        filter(ingredient %in% top_cors$item1) %>% 
+        distinct()
+
+# ~ 35 mins     
+top_cors %>% 
+        graph_from_data_frame(vertices = ingredient_info) %>% 
+        ggraph(layout = "fr") +
+        geom_edge_link() +
+        geom_node_text(aes(label = name), repel = TRUE) +
+        geom_node_point(aes(size = 1.1* n)) +        
+        geom_node_point(aes(size = n, color = avg_position)) +
+        scale_color_gradient2(low = "red", high = "blue", midpoint = .5,
+                              labels = scales::percent_format()) +
+        labs(size = "# of recipes",
+             color = "Avg position in drink",
+             title = "The universe of cocktail ingredients",
+             subtitle = "Connected ingredients tend to appear in the same drink. Red ingredients are early in the recipe, \n blue ingredients tend to be later")
+```
+
+
+
+
+
+### Dimensionality reduction
+
+I typically do my data cleaning with data in a tidy format, like `boston_cocktails` or `cocktails_parsed.` When it’s time for modeling, we usually need the data in a wider format, so let’s use `pivot_wider()` to reshape our data.
+
+```{r}
+cocktails_df <- cocktails_parsed_filtered %>%
+  select(-ingredient_number, -row_id, -measure) %>% # remove unneeded columns
+  pivot_wider(names_from = ingredient, values_from = measure_number, values_fill = 0) %>%
+  janitor::clean_names() 
+#  na.omit()
+
+cocktails_df
+```
+
+## Principal component analysis
+
+This dataset is especially delightful because we get to use recipes with recipes! Let’s load the tidymodels metapackage and implement principal component analysis with a recipe.
+
+```{r}
+library(tidymodels)
+
+pca_rec <- recipe(~., data = cocktails_df) %>%
+  update_role(name, category, new_role = "id") %>%
+  step_normalize(all_predictors()) %>%   # centers and scales all predictors
+  step_pca(all_predictors())
+
+pca_rec  # PCA hasn't actually been run yet - see next step
+
+```
+
+Now we actually run PCA:
+
+```{r}
+pca_prep <- prep(pca_rec)  # takes the data and estimates the PCA values
+#pca_prep
+```
+
+Let's look at our results:
+
+```{r}
+tidied_pca <- tidy(pca_prep, 2)
+tidied_pca
+```
+
+```{r}
+tidied_pca %>%
+  filter(component %in% paste0("PC", 1:5)) %>%
+  mutate(component = fct_inorder(component)) %>%
+  ggplot(aes(value, terms, fill = terms)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~component, nrow = 1) +
+  labs(y = NULL)
+```
+
+```{r}
+library(tidytext)
+
+tidied_pca %>%
+  filter(component %in% paste0("PC", 1:4)) %>%
+  group_by(component) %>%
+  top_n(8, abs(value)) %>%
+  ungroup() %>%
+  mutate(terms = reorder_within(terms, by = abs(value), within = component)) %>%  # from tidytext package - reorders column before plotting with faceting, such that the values are ordered within each facet...needs scale_x_reordered or scale_y_reordered to be used laster
+  ggplot(aes(abs(value), terms, fill = value > 0)) +
+  geom_col() +
+  facet_wrap(~component, , scales = "free_y") +
+  scale_y_reordered() +  # see earlier comment
+  labs(
+    x = "Absolute value of contribution",
+    y = NULL, fill = "Positive?"
+  )
+```
+
+So PC1 is about powdered sugar + egg + gin drinks vs. simple syrup + lime + tequila drinks. This is the component that explains the most variation in drinks. PC2 is mostly about vermouth, both sweet and dry.
+
+How are the cocktails distributed in the plane of the first two components?
+
+```{r}
+juice(pca_prep) %>%  # get info from processed dataset
+  ggplot(aes(PC1, PC2, label = name)) +
+  geom_point(aes(color = category), alpha = 0.7, size = 2) +
+  geom_text(check_overlap = TRUE, hjust = "inward") +  # so that labels dont overlap
+  labs(color = NULL)
+```
+
+* Fizzy, eggy, powdered sugar drinks are to the left.
+* Simple syrup, lime, tequila drinks are to the right.
+* Vermouth drinks are more to the top.

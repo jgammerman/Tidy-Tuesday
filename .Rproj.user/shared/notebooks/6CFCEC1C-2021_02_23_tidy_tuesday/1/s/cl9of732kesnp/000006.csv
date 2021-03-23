@@ -1,0 +1,20 @@
+"0","glimpse(tt$employed)
+"
+"1","Rows: 8,184"
+"1",""
+"1","
+"
+"1","Columns: 7"
+"1",""
+"1","
+"
+"1","$ industry         <chr> ""Agriculture and related"", ""Agriculture and related"", ""Agriculture and…
+$ major_occupation <chr> ""Management, professional, and related occupations"", ""Management, prof…
+$ minor_occupation <chr> ""Management, business, and financial operations occupations"", ""Profess…
+$ race_gender      <chr> ""TOTAL"", ""TOTAL"", ""TOTAL"", ""TOTAL"", ""TOTAL"", ""TOTAL"", ""TOTAL"", ""TOTAL""…
+$ industry_total   <dbl> 2349000, 2349000, 2349000, 2349000, 2349000, 2349000, 2349000, 2349000…
+$ employ_n         <dbl> 961000, 58000, 13000, 94000, 12000, 96000, 931000, 10000, 33000, 42000…
+$ year             <dbl> 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020, 2020…"
+"1",""
+"1","
+"

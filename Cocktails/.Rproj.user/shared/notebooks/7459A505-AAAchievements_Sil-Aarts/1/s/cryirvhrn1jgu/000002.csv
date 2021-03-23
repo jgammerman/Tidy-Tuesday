@@ -1,0 +1,2 @@
+"0","#Make some colours"
+"0","colors <- wes_palette(""Darjeeling2"", 8, type=""continuous"")"

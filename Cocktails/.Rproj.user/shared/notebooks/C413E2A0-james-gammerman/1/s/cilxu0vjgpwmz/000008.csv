@@ -1,0 +1,7 @@
+"0","ingredient_pairs %>% "
+"0","        filter(item1 == ""gin"") %>% "
+"0","        head(10) %>% "
+"0","        mutate(item2 = fct_reorder(item2, correlation)) %>% "
+"0","        ggplot(aes(correlation, item2)) +"
+"0","        geom_col() +"
+"0","        labs(title = ""What ingredients are most correlated with gin?"")"

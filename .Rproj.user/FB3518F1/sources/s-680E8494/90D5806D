@@ -1,0 +1,28 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1616534728921.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "90D5806D",
+    "lastKnownWriteTime" : 1616535982,
+    "last_content_update" : 1616535982879,
+    "path" : "~/Desktop/Data_Science/DS_learning/Tidy_Tuesday/2021_03_23_united_nations_votes.Rmd",
+    "project_path" : "2021_03_23_united_nations_votes.Rmd",
+    "properties" : {
+        "cursorPosition" : "102,10",
+        "docOutlineSize" : "44",
+        "docOutlineVisible" : "1",
+        "last_setup_crc32" : "680E84948c97f8e0",
+        "scrollLine" : "95"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

@@ -1,0 +1,6 @@
+"0","cocktails_parsed_filtered <- cocktails_parsed %>% # get a count of ingredients so we can filter out rare ones"
+"0","  add_count(ingredient) %>% "
+"0","  filter(n > 15) %>%  # reduces no. ingredients from >400 down to 40"
+"0","  select(-n) %>%"
+"0","  distinct(row_id, ingredient, .keep_all = TRUE) %>%    # to stop repetitions e.g. if we had lemon slice and lemon juice in a recipe then we will end up with 2 'lemon's as per our mutate() calls earlier"
+"0","  na.omit()"

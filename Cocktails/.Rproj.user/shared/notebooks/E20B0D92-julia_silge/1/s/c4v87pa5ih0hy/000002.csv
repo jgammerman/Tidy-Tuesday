@@ -1,0 +1,5 @@
+"0","juice(umap_prep) %>%"
+"0","  ggplot(aes(umap_1, umap_2, label = name)) +"
+"0","  geom_point(aes(color = category), alpha = 0.7, size = 2) +"
+"0","  geom_text(check_overlap = TRUE, hjust = ""inward"") +"
+"0","  labs(color = NULL)"

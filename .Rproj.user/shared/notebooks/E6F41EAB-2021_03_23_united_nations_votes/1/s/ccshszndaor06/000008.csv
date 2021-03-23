@@ -1,0 +1,6 @@
+"0","unvotes <- tt$unvotes %>%"
+"0","  mutate(vote_number = match(vote, c(""no"", ""abstain"", ""yes"")) - 2) %>%"
+"0","  left_join(tt$roll_calls %>%"
+"0","              select(rcid, date, amend), by = ""rcid"")"
+"0",""
+"0","unvotes"

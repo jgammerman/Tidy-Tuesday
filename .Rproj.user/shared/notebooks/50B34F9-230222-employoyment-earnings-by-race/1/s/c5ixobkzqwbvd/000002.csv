@@ -1,0 +1,29 @@
+"0","```r
+skimr::skim(employed)
+
+```"
+"1","── Data Summary ────────────────────────
+                           Values  
+Name                       employed
+Number of rows             8184    
+Number of columns          7       
+_______________________            
+Column type frequency:             
+  character                4       
+  numeric                  3       
+________________________           
+Group variables            None    
+
+── Variable type: character ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  skim_variable    n_missing complete_rate   min   max empty n_unique whitespace
+1 industry               330         0.960     3    46     0       25          0
+2 major_occupation         0         1        19    60     0        5          0
+3 minor_occupation         0         1        22    59     0       12          0
+4 race_gender              0         1         3    25     0        6          0
+
+── Variable type: numeric ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  skim_variable  n_missing complete_rate     mean         sd    p0    p25      p50     p75     p100 hist 
+1 industry_total       660         0.919 5077105. 6056216.   18000 767250 2484000  7643000 35894000 ▇▂▁▁▁
+2 employ_n             660         0.919  461552. 1267564.       0   9000   65000   373000 20263000 ▇▁▁▁▁
+3 year                   0         1        2018.       1.71  2015   2016    2018.    2019     2020 ▇▃▃▃▃
+"

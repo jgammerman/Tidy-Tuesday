@@ -1,0 +1,3 @@
+"0","options(tibble.width = 5)"
+"0","employed %>% "
+"0","        count(industry, major_occupation, sort = TRUE)"

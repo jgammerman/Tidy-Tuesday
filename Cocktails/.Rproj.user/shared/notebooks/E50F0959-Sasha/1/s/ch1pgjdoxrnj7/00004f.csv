@@ -1,0 +1,7 @@
+"0","library(ggplot2)"
+"0","ggplot(trib, aes(x = Ethnicity, y = `Perceived Competence`, fill = Gender)) +"
+"0","        geom_col(position=""dodge2"")  +"
+"0","        coord_cartesian(ylim = c(0,8)) +"
+"0","        labs(title = ""Results - Physics Departments"","
+"0","             subtitle = ""Perceived competence of candidates by ethnicity and gender"") +"
+"0","        ylab(""Perceived Competence (%)"")"

@@ -1,0 +1,4 @@
+"0","# How many ingredients are in each cocktail? ------------------------------"
+"0","cocktails %>%"
+"0","  count(name) %>%"
+"0","  count(n)"
