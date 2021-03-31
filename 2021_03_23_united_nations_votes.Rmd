@@ -2,6 +2,8 @@
 title: "TidyTemplate"
 date: 2021-03-23
 output: html_output
+editor_options: 
+  chunk_output_type: console
 ---
 
 # TidyTuesday
@@ -229,6 +231,64 @@ unvotes %>%
 ```
 
 
+```{r}
+unvotes %>%
+  group_by(continent = countrycode(country_code, "iso2c", "continent"),
+           year = year(date)) %>%
+  summarize_votes() %>% 
+  filter(!is.na(continent)) %>% 
+  ggplot(aes(year, pct_yes, color =continent)) +
+  geom_line()
+```
 
 
+```{r}
+library(WDI)
+
+country_incomes <- WDI(indicator = c('gdp_per_capita' = 'NY.GDP.PCAP.KD',
+                                     'pop' = 'SP.POP.TOTL'),
+                       start = 2005, end = 2005, extra = TRUE) %>%
+  as_tibble() %>%
+  rename(gdp_per_capita = NY.GDP.PCAP.KD, pop = SP.POP.TOTL) %>% # had to add this in to David's code
+  select(country_code = iso2c, income, gdp_per_capita, pop) %>%
+  filter(!is.na(income)) %>%
+  mutate(income = fct_relevel(income, "Low income", "Lower middle income", "Upper middle income"))
+
+```
+
+## Correlation between countries
+
+```{r}
+unvotes %>%
+  filter(country %in% c("India", "Canada")) %>%
+  select(rcid, country, vote_number) %>%
+  spread(country, vote_number, fill = 0) %>%
+  summarize(correlation = cor(Canada, India))
+```
+
+
+```{r}
+
+library(widyr)
+
+country_correlations <- unvotes %>%
+  filter(country != "Zanzibar") %>%
+  pairwise_cor(country, rcid, vote_number, sort = TRUE) %>%
+  mutate(continent1 = countrycode(item1, "country.name", "continent"),
+         continent2 = countrycode(item2, "country.name", "continent"))
+
+```
+
+```{r}
+
+country_correlations %>%
+  filter(item1 == "United Kingdom") %>%
+  slice(c(1:16, n() - 0:15)) %>%
+  mutate(country = fct_reorder(item2, correlation)) %>%
+  ggplot(aes(correlation, country)) +
+  geom_errorbarh(height = 0, aes(xmin = correlation, xmax = 0)) + 
+  geom_point() +
+  labs(x = "How much this country's voting is correlated with the UK",
+       y = "")
+```
 
