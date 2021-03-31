@@ -106,37 +106,129 @@ by_country %>%
 ```
 
 
+```{r}
+library(lubridate)
 
-# Wrangle
-
-Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
-
-```{r Wrangle}
-
-
-
+unvotes
 ```
 
+```{r}
+by_year <- unvotes %>%
+  group_by(year = year(date)) %>%
+  summarize_votes()
 
-# Visualize
-
-Using your processed dataset, create your unique visualization.
-
-```{r Visualize}
-
-
-  
+by_year %>%
+  ggplot(aes(year, pct_yes)) +
+  geom_line() +
+  expand_limits(y = 0)
 ```
 
-# Save Image
+```{r}
+by_country_year <- unvotes %>%
+  bind_rows(unvotes %>% mutate(country = "Overall")) %>% 
+  group_by(year = year(date), country, country_code) %>%
+  summarize_votes()
 
-Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+by_country_year %>%
+  filter(country %in% c("United States", "Canada", "Mali", "Israel")) %>%
+  mutate(country = fct_reorder(country, pct_yes)) %>%
+  ggplot(aes(year, pct_yes)) +
+  geom_line(data = by_year, size = 2) +
+  geom_line(aes(color = country)) +
+  scale_y_continuous(labels = percent) +
+  scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
+  expand_limits(y = 0) +
+  labs(y = "% yes votes")
+```
+
+```{r}
+by_country_year %>%
+ filter(country %in% c("United States", "Canada", "Mali", "Israel")) %>%
+ mutate(country = fct_reorder(country, pct_yes)) %>%
+ ggplot(aes(year, pct_yes, color = country)) +
+ geom_line() +
+ scale_color_discrete(guide = guide_legend(reverse=TRUE)) # reverse order of legend
+        
+```
+
+```{r}
+by_country_year %>%
+  filter(country %in% c("United States", "Canada", "Mali", "Israel", "United Kingdom", "France", "Russia")) %>%
+  mutate(country = fct_reorder(country, pct_yes)) %>%
+  ggplot(aes(year, pct_yes, color = country)) +
+  geom_line() +
+  expand_limits(y=0) +
+  facet_wrap(~ country) +
+  theme(legend.position = "none")
+```
+
+World map
+
+```{r}
+map_data("world") %>% 
+ tibble()  %>% tail()    
+```
+
+```{r}
+library(ggthemes)
+library(fuzzyjoin)
+
+world_data <- map_data("world") %>%
+  as_tibble() %>%
+  regex_left_join(maps::iso3166 %>%
+                    select(mapname, country_code = a2),
+                  c(region = "mapname")) %>%
+  filter(region != "Antarctica")
+
+world_data %>%
+  left_join(by_country, by = "country_code") %>%
+  ggplot(aes(long, lat, group = group, fill = pct_yes)) +
+  geom_polygon() +
+  theme_map() +
+  scale_fill_gradient2(low = "red",
+                       high = "blue",
+                       midpoint = .6,
+                       labels = percent) +
+  labs(fill = "% yes votes")
+```
 
 ```{r}
 
-# This will save your most recent plot
-ggsave(
-  filename = "My TidyTuesday Plot.png",
-  device = "png")
+library(ggthemes)
 
+map_data("world") %>% 
+        filter(region != "Antarctica") %>% 
+        ggplot(aes(long, lat, group = group)) +
+        geom_polygon() +
+        theme_map()
 ```
+
+By continent (25:55 in video)
+
+```{r}
+library(countrycode)
+
+plot_by <- function(tbl, category) {
+  tbl %>%
+    filter(!is.na({{ category }})) %>%
+    mutate(category = fct_reorder({{ category }}, pct_yes)) %>%
+    ggplot(aes(year, pct_yes)) +
+    geom_line(aes(color = category)) +
+    scale_y_continuous(labels = percent) +
+    scale_color_discrete(guide = guide_legend(reverse = TRUE)) +
+    expand_limits(y = 0) +
+    labs(y = "% yes votes",
+         x = "Year")
+}
+
+unvotes %>%
+  group_by(continent = countrycode(country_code, "iso2c", "continent"),
+           year = year(date)) %>%
+  summarize_votes() %>%
+  plot_by(continent)
+```
+
+
+
+
+
