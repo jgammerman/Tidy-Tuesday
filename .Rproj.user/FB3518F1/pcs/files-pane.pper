@@ -1,13 +1,13 @@
 {
-    "path" : "~/Desktop/Data_Science/DS_learning/Tidy_Tuesday",
+    "path" : "~/Desktop/Data_Science",
     "sortOrder" : [
-        {
-            "ascending" : true,
-            "columnIndex" : 2
-        },
         {
             "ascending" : false,
             "columnIndex" : 4
+        },
+        {
+            "ascending" : true,
+            "columnIndex" : 2
         }
     ]
 }
