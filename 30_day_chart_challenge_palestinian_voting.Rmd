@@ -1,0 +1,86 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+## Set up
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidytuesdayR)
+library(tidyverse)
+library(scales)
+library(ggthemes)
+theme_set(theme_light())
+```
+
+## Download data
+
+```{r, warning = FALSE, message = FALSE}
+## Load the data
+tt <- tt_load("2021-03-23")
+```
+
+## Join datasets
+
+Also engineer 'decade' column.
+
+```{r}
+issues_rollcalls <- tt$issues %>% 
+        select(rcid, issue) %>% 
+  inner_join(tt$roll_calls %>% 
+        select(rcid, date), by = "rcid") %>% 
+        mutate(year = lubridate::year(date),
+               decade = 10 * (year %/% 10)) %>% 
+        select(-year, -date)
+issues_rollcalls
+```
+
+## Visualise data
+
+```{r}
+issues_rollcalls %>% 
+        group_by(issue, decade) %>% 
+        summarise(count = n()) %>% 
+        ggplot(aes(x = decade, y = count)) +
+        geom_line(aes(color = issue))+
+        facet_wrap(~issue) +
+        labs(x = "Decade", y = "Number of votes in decade", title = "Count Of UN Vote Topics Each Decade") +   
+       # theme_bw() +
+        theme(legend.position = "none") 
+    
+```
+
+## Palestinian conflict
+
+```{r}
+
+issues <- tt$issues
+
+issue_proportions <- issues %>% 
+        distinct(rcid, issue) %>% 
+        group_by(issue) %>% 
+        mutate(total_votes_on_issue = n()) %>% 
+        ungroup() %>% 
+        mutate(distinct_rcids = n_distinct(rcid)) %>% 
+        distinct(issue, total_votes_on_issue, distinct_rcids) %>% 
+        group_by(issue) %>% 
+        summarise(proportion = total_votes_on_issue / distinct_rcids) %>% 
+        arrange(desc(proportion))
+        
+issue_proportions
+```
+
+```{r}
+issue_proportions %>% 
+        mutate(issue = fct_lump_n(issue, n=2, w = proportion)) %>% 
+        ggplot(aes(x = "", y = proportion, fill = issue)) +
+        geom_bar(stat = "identity") + 
+        coord_polar("y", start=0)
+```
+
+
+
+
