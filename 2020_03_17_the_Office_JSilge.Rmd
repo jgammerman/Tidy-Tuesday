@@ -1,0 +1,73 @@
+---
+title: "The Office - Julia Silge"
+date: 2020-03-17
+output: html_output
+---
+
+Link: https://juliasilge.com/blog/lasso-the-office/
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = FALSE}
+library(tidyverse)
+library(scales)
+library(schrute)
+theme_set(theme_light())
+```
+
+
+Our modeling goal here is to predict the IMDB ratings for episodes of The Office based on the other characteristics of the episodes in the #TidyTuesday dataset. 
+
+There are two datasets, one with the ratings and one with information like director, writer, and which character spoke which line. The episode numbers and titles are not consistent between them, so we can use regular expressions to do a better job of matching the datasets up for joining.
+
+Look at raw ratings table:
+
+```{r}
+library(tidyverse)
+
+ratings_raw <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-17/office_ratings.csv")
+
+ratings_raw
+
+```
+
+Clean it up:
+
+```{r}
+remove_regex <- "[:punct:]|[:digit:]|parts |part |the |and"
+
+office_ratings <- ratings_raw %>%
+  transmute(
+    episode_name = str_to_lower(title),
+    episode_name = str_remove_all(episode_name, remove_regex),
+    episode_name = str_trim(episode_name),
+    imdb_rating
+  )
+
+office_ratings
+
+```
+
+Look at raw episodes table:
+
+```{r}
+schrute::theoffice
+```
+Clean it up:
+
+```{r}
+office_info <- schrute::theoffice %>%
+  mutate(
+    season = as.numeric(season),
+    episode = as.numeric(episode),
+    episode_name = str_to_lower(episode_name),
+    episode_name = str_remove_all(episode_name, remove_regex),
+    episode_name = str_trim(episode_name)
+  ) %>%
+  select(season, episode, episode_name, director, writer, character)
+
+office_info
+```
+

@@ -1,8 +1,11 @@
 ---
-title: "TidyTemplate"
-date: 2021-04-07
+title: "The Office - David Robinson"
+date: 2020-03-17
 output: html_output
 ---
+
+Link to video: https://www.youtube.com/watch?v=_IvAubTDQME&t=2465s
+Link to code: https://github.com/dgrtwo/data-screencasts/blob/master/office-transcripts.Rmd
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -181,13 +184,12 @@ ratings_summarized <- office_ratings %>%
   group_by(name) %>%
   summarize(imdb_rating = mean(imdb_rating))
 
+ratings_summarized
+
 ```
 
 
 ```{r}
-ratings_summarized <- office_ratings %>%
-  group_by(name) %>%
-  summarize(imdb_rating = mean(imdb_rating))
 
 character_lines_ratings <- office_transcripts %>%
   filter(!character %in% blacklist_characters) %>%
@@ -197,10 +199,102 @@ character_lines_ratings <- office_transcripts %>%
          n() >= 5) %>%
   inner_join(ratings_summarized, by = "name")
 
+character_lines_ratings
+```
+
+```{r}
 character_lines_ratings %>%
   summarize(avg_rating = mean(imdb_rating),
             nb_episodes = n()) %>%
-  arrange(desc(avg_rating)) %>%
-  View()
+  arrange(desc(avg_rating)) 
+```
+
+```{r}
+director_writer_features <- office_transcripts %>%
+  distinct(name, director, writer) %>%
+  gather(type, value, director, writer) %>%
+  separate_rows(value, sep = ";") %>%
+  unite(feature, type, value, sep = ": ") %>%
+  group_by(feature) %>%
+  filter(n() >= 3) %>%
+  mutate(value = 1) %>%
+  ungroup()
+
+director_writer_features
+```
+
+```{r}
+character_line_features <- character_lines_ratings %>%
+  ungroup() %>%
+  transmute(name, feature = character, value = log2(n))
+
+character_lines_ratings
+character_line_features
+```
+
+```{r}
+ggplot(character_lines_ratings, aes(n)) + geom_histogram()
+```
+
+```{r}
+ggplot(character_lines_ratings, aes(n)) + geom_histogram() + scale_x_log10()
+```
+
+Conclusion: Use the logarithm of the character line count, not just the value itself!
+
+```{r}
+season_features = office_ratings %>%
+  distinct(name, season) %>%
+  transmute(name, feature = paste("season:", season), value = 1)
+
+office_ratings
+season_features
+```
+
+```{r}
+features <- bind_rows(director_writer_features,
+                      character_line_features,
+                      season_features) %>%
+  semi_join(office_ratings, by = "name") %>%
+  semi_join(office_transcripts, by = "name")
+
+features
+```
+
+```{r}
+episode_feature_matrix <- features %>%
+  cast_sparse(name, feature, value)
+
+episode_feature_matrix
+```
+
+
+```{r}
+ratings <- ratings_summarized$imdb_rating[match(rownames(episode_feature_matrix), ratings_summarized$name)]
+
+ratings
+```
+
+```{r}
+library(glmnet)
+library(broom)
+
+mod <- cv.glmnet(episode_feature_matrix, ratings)
+
+plot(mod)
+
+```
+
+```{r}
+
+tidy(mod$glmnet.fit) %>%
+  filter(lambda == mod$lambda.min,
+         term != "(Intercept)") %>%
+  mutate(term = fct_reorder(term, estimate)) %>%
+  ggplot(aes(term, estimate, fill = estimate > 0)) +
+  geom_col() +
+  coord_flip() +
+  labs(y = "Estimated effect on the rating of an episode") +
+  theme(legend.position = "none")
 ```
 
