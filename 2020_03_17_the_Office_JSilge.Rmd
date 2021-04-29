@@ -2,6 +2,8 @@
 title: "The Office - Julia Silge"
 date: 2020-03-17
 output: html_output
+editor_options: 
+  chunk_output_type: console
 ---
 
 Link: https://juliasilge.com/blog/lasso-the-office/
@@ -14,7 +16,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(scales)
 library(schrute)
+#library(silgelib)
 theme_set(theme_light())
+#theme_set(theme_plex())
 ```
 
 
@@ -30,7 +34,6 @@ library(tidyverse)
 ratings_raw <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-03-17/office_ratings.csv")
 
 ratings_raw
-
 ```
 
 Clean it up:
@@ -50,7 +53,7 @@ office_ratings
 
 ```
 
-Look at raw episodes table:
+Now look at raw episodes info table:
 
 ```{r}
 schrute::theoffice
@@ -70,4 +73,177 @@ office_info <- schrute::theoffice %>%
 
 office_info
 ```
+
+```{r}
+characters <- office_info %>% 
+  count(episode_name, character) %>% 
+  add_count(character, wt = n, name = "character_count") %>% 
+  filter(character_count > 800) %>% 
+  select(-character_count) %>% 
+  pivot_wider(names_from = character,
+              values_from = n,
+              values_fill = list(n = 0))
+
+characters
+```
+
+```{r}
+creators <- office_info %>% 
+  distinct(episode_name, director, writer) %>% 
+  pivot_longer(director:writer, names_to = "role", values_to = "person") %>% 
+  separate_rows(person, sep = ";") %>% 
+  add_count(person) %>% 
+  filter(n > 10) %>% 
+  distinct(episode_name, person) %>% 
+  mutate(person_value = 1) %>% 
+  pivot_wider(names_from = person,
+              values_from = person_value,
+              values_fill = list(person_value = 0))
+
+creators
+```
+
+```{r}
+office <- office_info %>% 
+  distinct(season, episode, episode_name) %>% 
+  inner_join(characters) %>% 
+  inner_join(creators) %>% 
+  inner_join(office_ratings) %>% 
+  janitor::clean_names()
+
+office
+```
+
+```{r}
+office %>% 
+  ggplot(aes(season, imdb_rating, fill = as.factor(season))) +
+  geom_boxplot(show.legend = FALSE)
+```
+
+```{r}
+office %>% 
+  ggplot(aes(episode, imdb_rating, fill = as.factor(episode))) +
+  geom_boxplot(show.legend = FALSE) + 
+  facet_wrap(~season)
+```
+
+## Train a model
+
+```{r}
+library(tidymodels)
+
+office_split <- initial_split(office, strata = season)
+
+office_train <- training(office_split)
+office_test <- testing(office_split)
+```
+
+```{r}
+office_rec <- recipe(imdb_rating ~., data = office_train) %>% 
+  update_role(episode_name, new_role = "ID") %>% 
+  step_zv(all_numeric(), all_outcomes()) %>% 
+  step_normalize(all_numeric(), -all_outcomes()) 
+
+office_prep <- office_rec %>% 
+  prep(strings_as_factors = FALSE)
+
+office_prep
+```
+
+Time to train the model
+
+```{r}
+lasso_spec <- linear_reg(penalty = 0.1, mixture = 1) %>% 
+  set_engine("glmnet")
+
+wf <- workflow() %>% 
+  add_recipe(office_rec)
+```
+
+```{r}
+lasso_fit <- wf %>% 
+  add_model(lasso_spec) %>% 
+  fit(data = office_train)
+```
+
+```{r}
+lasso_fit %>% 
+  pull_workflow_fit() %>% 
+  tidy() %>% 
+  arrange(desc(estimate))
+```
+
+
+## Tune LASSO parameters
+
+```{r}
+set.seed(1234)
+
+office_boot <- bootstraps(office_train, strata = season)
+
+tune_spec <- linear_reg(penalty = tune(), mixture = 1) %>% 
+  set_engine("glmnet")
+
+lambda_grid <- grid_regular(penalty(),
+                            levels = 50)
+
+doParallel::registerDoParallel()
+
+set.seed(2020)
+
+lasso_grid <- tune_grid(
+  wf %>% add_model(tune_spec),
+  resamples = office_boot,
+  grid = lambda_grid
+)
+```
+
+
+```{r}
+lasso_grid %>% 
+  collect_metrics()
+```
+
+
+
+```{r}
+lasso_grid %>% 
+  collect_metrics() %>% 
+  ggplot(aes(penalty, mean, color = .metric)) +
+  geom_errorbar(aes(ymin = mean - std_err,
+                    ymax = mean + std_err),
+                  alpha = 0.5) +
+  geom_line(size = 1.5) +
+  facet_wrap(~.metric, scales = "free", nrow = 2) +
+  scale_x_log10() +
+  theme(legend.position = "none")
+```
+
+```{r}
+lowest_rmse <- lasso_grid %>% 
+  select_best("rmse", maximise = FALSE)
+
+final_lasso <- finalize_workflow(wf %>% 
+                                add_model(tune_spec),
+                                lowest_rmse)
+library(vip)
+
+final_lasso %>% 
+  fit(office_train) %>% 
+  pull_workflow_fit() %>% 
+  vi(lambda = lowest_rmse$penalty) %>% 
+  mutate(Importance = abs(Importance),
+         Variable = fct_reorder(Variable, Importance)) %>% 
+  ggplot(aes(x = Importance, y = Variable, fill = Sign)) +
+  geom_col() +
+  scale_x_continuous(expand = c(0, 0)) +
+  labs(y = NULL)
+```
+
+```{r}
+last_fit(final_lasso,
+         office_split) %>% 
+  collect_metrics()
+```
+
 
